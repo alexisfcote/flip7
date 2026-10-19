@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0a2b33">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flip 7">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#0d2b33">
+<meta http-equiv="Cache-Control" content="no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<title>Flip 7 — Compteur de points</title>
+<style>
+  :root{
+    --felt:#0a2b33; --felt-d:#071d24;
+    --panel:#123f4a; --panel2:#1a505f;
+    --ink:#f6f1e4; --muted:#93b3bb; --line:rgba(246,241,228,.13);
+    --gold:#f0bb52; --gold2:#d1921f;
+    --coral:#f4685c; --teal:#42cdbe; --ok:#46c983; --bad:#ef5b4b; --violet:#a78bfa;
+    --radius:16px; --shadow:0 12px 34px -14px rgba(0,0,0,.8);
+    --cw:74px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;overflow:clip;overscroll-behavior:none}
+  /* fond « feutre de table » : dégradés + trame, purement décoratif (aucun impact sur la mise en page) */
+  body{
+    background:
+      radial-gradient(95% 55% at 50% -10%, #1a5765 0%, rgba(26,87,101,0) 62%),
+      radial-gradient(120% 80% at 50% 112%, #05161b 0%, rgba(5,22,27,0) 58%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.021) 0 2px, rgba(255,255,255,0) 2px 13px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,.055) 0 2px, rgba(0,0,0,0) 2px 13px),
+      linear-gradient(180deg, var(--felt) 0%, var(--felt-d) 100%);
+    background-color: var(--felt);
+    color:var(--ink);
+    font:16px/1.32 ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",Roboto,system-ui,sans-serif;
+    height:100vh; height:100dvh; display:flex; flex-direction:column;
+    padding:7px 7px calc(7px + env(safe-area-inset-bottom)); gap:7px;
+    font-feature-settings:"tnum" 0;
+  }
+  #app{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:7px;max-width:820px;
+       width:100%;margin:0 auto}
+
+  /* ---------- typographie ---------- */
+  h1{font-size:20px;margin:2px 0 0;letter-spacing:.1px;display:flex;align-items:center;gap:10px;line-height:1.15}
+  h1 .logo{
+    width:32px;height:40px;flex:0 0 auto;border-radius:8px;display:grid;place-items:center;
+    font-weight:900;font-size:21px;color:#0a2b33;transform:rotate(-7deg);
+    background:linear-gradient(160deg,#fffdf7,#e6dfcd);
+    box-shadow:0 3px 0 rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.16), 0 10px 20px -12px #000;
+  }
+  h1 .tagline{font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
+  h2{font-size:11px;margin:0 0 5px;color:var(--muted);text-transform:uppercase;letter-spacing:1.6px;font-weight:800}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* ---------- boutons : gros, tactiles, avec du relief ---------- */
+  .btn{
+    border-radius:14px;padding:12px 15px;min-height:48px;font-weight:800;letter-spacing:.2px;
+    background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.02)), var(--panel2);
+    border:1px solid var(--line);
+    box-shadow:0 2px 0 rgba(0,0,0,.4), 0 8px 20px -14px rgba(0,0,0,.9);
+    transition:transform .07s ease, filter .12s ease;
+  }
+  .btn:active{transform:translateY(1px) scale(.985);filter:brightness(1.06)}
+  .btn.primary{
+    background:linear-gradient(180deg,#ffd479,var(--gold) 46%,var(--gold2));
+    color:#2c1700;border-color:#ffdd93;text-shadow:0 1px 0 rgba(255,255,255,.35);
+    box-shadow:0 3px 0 #9c6c0c, 0 14px 26px -14px var(--gold);
+  }
+  .btn.ghost{background:rgba(255,255,255,.05);border-color:var(--line);font-weight:700}
+  .btn.danger{
+    background:linear-gradient(180deg, rgba(239,91,75,.3), rgba(239,91,75,.16));
+    border-color:rgba(239,91,75,.55);color:#ffd9d3;box-shadow:0 2px 0 rgba(120,30,22,.6);
+  }
+  .btn[disabled]{opacity:.38;pointer-events:none}
+  .btn.small{min-height:38px;padding:8px 11px;border-radius:11px;font-size:14px}
+
+  .row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .nowrap{flex-wrap:nowrap}
+  .btn.nowrap{white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .btn svg{display:block;margin:0 auto}
+  .ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .hairline{height:1px;background:var(--line);margin:2px 0}
+
+  /* ---------- en-tête ---------- */
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex:0 0 auto;min-height:34px}
+  .badge{
+    font-size:11.5px;font-weight:700;letter-spacing:.4px;padding:5px 10px;border-radius:999px;
+    border:1px solid var(--line);background:rgba(255,255,255,.055);color:var(--muted);
+    white-space:nowrap;
+  }
+  .badge b{color:var(--ink);font-weight:900}
+
+  /* ---------- panneaux ---------- */
+  .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.015)), var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin:0;flex:0 0 auto;
+    box-shadow:var(--shadow);
+  }
+  .panel.grow{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+
+  /* ---------- carte de score (assistant de compilation) ---------- */
+  .scorecard{
+    display:flex;flex-direction:column;gap:7px;padding:10px 12px 11px;flex:0 0 auto;
+    background:linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.02)), var(--panel);
+    border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+  }
+  .prow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+  .avatar{
+    width:36px;height:36px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;
+    font-weight:900;font-size:16px;color:#08222a;text-transform:uppercase;
+    box-shadow:0 0 0 2px rgba(255,255,255,.16), 0 4px 12px -5px rgba(0,0,0,.85);
+  }
+  .pscore{
+    font-size:46px;line-height:.92;font-weight:900;letter-spacing:-1.5px;color:var(--gold);
+    font-variant-numeric:tabular-nums;text-shadow:0 4px 22px rgba(240,187,82,.4);
+  }
+  .pscore.pop{animation:pop .36s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .pname{font-weight:800;font-size:19px;letter-spacing:.1px}
+
+  .prog{height:15px;line-height:15px;font-size:11.5px;font-weight:700;color:var(--teal);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto;letter-spacing:.2px}
+  /* hauteur figée : aucun texte qui change ne doit déplacer la page */
+  .fixedline{display:flex;align-items:center;justify-content:space-between;gap:8px;height:30px;flex:0 0 auto}
+
+  .bottombar{flex:0 0 auto;display:flex;gap:7px}
+  /* ---------- cartes ---------- */
+  .cards{display:flex;flex-wrap:wrap;gap:7px}
+  .card{
+    position:relative;width:var(--cw,64px);height:calc(var(--cw,64px) * 1.4);border-radius:11px;overflow:hidden;
+    border:1px solid rgba(0,0,0,.38);flex:0 0 auto;display:block;background:#fff;
+    box-shadow:0 3px 0 rgba(0,0,0,.42), 0 10px 20px -12px rgba(0,0,0,.95), inset 0 0 0 1px rgba(255,255,255,.3);
+  }
+  .card img{width:100%;height:100%;object-fit:cover;display:block}
+  .card .svgface{display:block;width:100%;height:100%}
+  .card.pick{transition:filter .12s ease, box-shadow .12s ease}
+  .card.pick:active{filter:brightness(1.14)}
+
+  /* le bac : colonnes fixes, tout centré, la taille des cartes vient de --cw */
+  .tray{display:grid;justify-content:start;gap:6px;
+    grid-template-columns:repeat(var(--cols,5), var(--cw,60px))}
+  /* les 6 Bonus tiennent en UNE rangée, alignée sur les colonnes du haut */
+  #tbonus,#tspec{grid-template-columns:repeat(6, var(--cwb, var(--cw,60px)))}
+  #tbonus .card,#tspec .card{width:var(--cwb, var(--cw,60px));height:calc(var(--cwb, var(--cw,60px)) * 1.4)}
+  .trays{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+    justify-content:space-evenly;gap:10px;overflow:hidden;overflow:clip}
+  .grp{margin:7px 0 3px;font-size:10.5px;letter-spacing:1.5px;color:var(--muted);
+    text-transform:uppercase;font-weight:800}
+  /* carte allumée : contour doré + ✓, sans bouger d'un pixel */
+  .tray .card.sel{
+    outline:3px solid var(--gold);outline-offset:-1px;filter:brightness(1.1) saturate(1.1);
+    box-shadow:0 0 0 2px rgba(0,0,0,.5), 0 0 24px -2px var(--gold), inset 0 0 0 1px rgba(255,255,255,.35);
+  }
+  .tray .card.sel::after{
+    content:"✓";position:absolute;bottom:3px;left:3px;font-size:11px;font-weight:900;line-height:1;
+    color:#2c1700;background:var(--gold);border-radius:50%;padding:2px 3px;
+    box-shadow:0 2px 5px rgba(0,0,0,.55);
+  }
+
+  /* ---------- joueurs ---------- */
+  .player{
+    border:1px solid var(--line);border-radius:13px;padding:6px 8px;margin-bottom:5px;
+    background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012));
+    transition:box-shadow .2s ease, border-color .2s ease;
+  }
+  .player.active{
+    border-color:rgba(240,187,82,.85);
+    box-shadow:0 0 0 1px rgba(240,187,82,.55), 0 14px 30px -18px var(--gold),
+               inset 0 0 24px -16px var(--gold);
+  }
+  .player.stopped{opacity:.8}
+  .player.busted{opacity:.6}
+  .player.shake{animation:shake .42s cubic-bezier(.36,.07,.19,.97)}
+  @keyframes shake{10%,90%{transform:translateX(-2px)}30%,70%{transform:translateX(3px)}50%{transform:translateX(-4px)}}
+  .phead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .ptotal{font-variant-numeric:tabular-nums;font-weight:900;color:var(--gold);font-size:20px}
+  .pline{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+  .pline .card{width:38px;height:53px;border-radius:8px}
+  .tag{
+    font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted);background:rgba(255,255,255,.04);
+  }
+  .tag.bust{color:#ffd2cb;border-color:rgba(239,91,75,.6);background:rgba(239,91,75,.16)}
+  .tag.stop{color:#d6f5e2;border-color:rgba(70,201,131,.6);background:rgba(70,201,131,.16)}
+  .tag.frozen{color:#cfe9ff;border-color:rgba(90,170,255,.6);background:rgba(90,170,255,.16)}
+  .sub{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--muted);font-weight:600}
+  .dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto}
+
+  /* ---------- messages superposés : ne déplacent rien, ne bloquent rien ---------- */
+  .banner{
+    position:fixed;left:7px;right:7px;top:48px;z-index:60;pointer-events:auto;cursor:pointer;
+    background:rgba(30,23,5,.96);border:1px solid rgba(240,187,82,.55);border-radius:13px;
+    padding:8px 11px;font-size:13.5px;line-height:1.28;
+    box-shadow:0 16px 34px -14px rgba(0,0,0,.9);
+    backdrop-filter:blur(4px);max-height:16vh;overflow:hidden;
+    animation:bannerIn .18s ease-out;
+  }
+  @keyframes bannerIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .banner.bad{background:rgba(60,17,13,.96);border-color:rgba(239,91,75,.6)}
+  .banner.small{padding:7px 10px;font-size:12.5px}
+
+  /* ---------- écran de départ ---------- */
+  .setup input{
+    font:inherit;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:12px;
+    padding:11px 12px;color:var(--ink);width:100%;min-height:48px;
+  }
+  .setup input:focus{outline:2px solid rgba(240,187,82,.5);outline-offset:1px;border-color:rgba(240,187,82,.5)}
+  .plist .row{margin-bottom:7px}
+  input.bad{border-color:rgba(239,91,75,.85) !important;background:rgba(239,91,75,.15) !important}
+  .warn{color:#ffb3aa}
+
+  /* ---------- modale ---------- */
+  .modal{position:fixed;inset:0;background:rgba(3,14,18,.78);display:flex;align-items:flex-end;
+    justify-content:center;padding:14px;z-index:50;backdrop-filter:blur(2px)}
+  .sheet{
+    background:linear-gradient(180deg, #16485a, #0e3240);
+    border:1px solid var(--line);border-radius:20px;padding:15px;width:100%;max-width:520px;
+    box-shadow:0 24px 60px -20px #000;max-height:90vh;overflow-y:auto;
+  }
+  .inp{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:10px;
+    color:var(--ink);font:inherit;font-size:14px;padding:7px 9px;outline:none}
+  .inp:focus{border-color:var(--gold)}
+  .inp::placeholder{color:var(--muted)}
+  .srow{padding:5px 0 2px}
+  .pbar{height:9px;border-radius:99px;background:rgba(0,0,0,.42);overflow:hidden;margin:5px 0 4px;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+  .pbar i{display:block;height:100%;border-radius:99px;
+    background:linear-gradient(90deg,#d1921f,#f0bb52)}
+  .pbar i[style*="width:100"]{background:linear-gradient(90deg,#2f9e6f,#46c983)}
+  .sheet h3{margin:0 0 12px;font-size:17px;letter-spacing:.2px}
+
+  /* ---------- fin de manche / partie ---------- */
+  .scoreline{display:flex;justify-content:space-between;gap:10px;padding:9px 2px;
+    border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .scoreline:last-child{border-bottom:0}
+  .win{text-align:center;padding:22px 0 14px}
+  .win .big{font-size:40px;font-weight:900;color:var(--gold);letter-spacing:-1px;
+    text-shadow:0 6px 26px rgba(240,187,82,.45)}
+  .win .crown{font-size:34px;line-height:1}
+  details{margin-top:8px}
+  summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:700}
+
+  /* ---------- confettis (Flip 7, victoire) ---------- */
+  #party{position:fixed;inset:0;pointer-events:none;z-index:80;overflow:hidden}
+  #party i{position:absolute;top:-14vh;width:9px;height:15px;border-radius:2px;animation:fall linear forwards}
+  @keyframes fall{to{transform:translate3d(var(--dx,0),125vh,0) rotate(760deg)}}
+  .flash{
+    position:fixed;left:50%;top:36%;z-index:81;pointer-events:none;white-space:nowrap;
+    font-size:32px;font-weight:900;letter-spacing:.5px;color:#2c1700;
+    background:linear-gradient(180deg,#ffe09a,var(--gold) 55%,var(--gold2));
+    padding:13px 24px;border-radius:20px;border:1px solid #ffe8b8;
+    box-shadow:0 18px 46px -12px rgba(240,187,82,.95), 0 4px 0 #9c6c0c;
+    animation:flash 1.5s cubic-bezier(.2,.9,.3,1) forwards;
+  }
+  @keyframes flash{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.55) rotate(-3deg)}
+    16%{opacity:1;transform:translate(-50%,-50%) scale(1.1) rotate(1deg)}
+    28%{transform:translate(-50%,-50%) scale(1) rotate(0)}
+    78%{opacity:1}
+    100%{opacity:0;transform:translate(-50%,-62%) scale(.96)}
+  }
+
+  /* ---------- petits téléphones (320-340 px de large) ---------- */
+  @media (max-width: 344px){
+    .badge{font-size:10.5px;padding:4px 7px}
+    .topbar{gap:5px}
+    #cBust,#cNext{font-size:13.5px !important}
+    .pscore{font-size:38px}
+    .pname{font-size:17px}
+    .scorecard{padding:8px 10px}
+    .fixedline .ellip{display:none}   /* à 153 px, l'aide serait tronquée : on la retire */
+  }
+
+  /* ---------- écrans courts (téléphone en paysage) ---------- */
+  @media (max-height: 520px){
+    .fixedline{display:none}
+    .pname{font-size:16px !important}
+    .pscore{font-size:30px !important}
+    .ptotal{font-size:20px !important;min-width:48px !important}
+    .panel,.scorecard{padding:7px 9px}
+    .grp{display:none}
+    h1{font-size:16px}
+    h1 .logo{width:26px;height:33px;font-size:17px}
+  }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+/* =========================================================================
+   Flip 7 — compteur de points
+   Règles officielles (édition FR « Stop ou encore » / The Op Games)
+   - 94 cartes : 79 Numéro (0×1, 1×1, 2×2, … 12×12), 9 Spéciales (3 chacune),
+     6 Bonus (×2, +2, +4, +6, +8, +10 — 1 chacune)
+   - Sauter (doublon de Numéro) = 0 point pour la manche
+   - Flip 7 (7 Numéros différents) = fin de manche immédiate + 15 points
+   - Score = somme des Numéros → ×2 → + Bonus → +15 si Flip 7
+   - Les cartes jouées sont mises de côté : la pioche s'épuise (bouton « remélanger »)
+   ========================================================================= */
+
+const BUILD = "19 oct · 19h40";
+
+/* ---------- données des cartes ---------- */
+const MOTS = ["ZÉRO","UN","DEUX","TROIS","QUATRE","CINQ","SIX","SEPT","HUIT","NEUF","DIX","ONZE","DOUZE"];
+/* couleurs relevées sur les vraies cartes : panneau dominant + accent latéral */
+const COUL = ["#d63e48","#8f7a6b","#d0a439","#c82a59","#3faab5","#628b47","#7c3b7e","#d84c5b","#83b882","#e57835","#c72239","#3b79c4","#5c5955"];
+const ACC  = ["#2c83c9","#c38f9e","#9dbe3f","#e13774","#1cbcc8","#4bae4f","#ba3789","#e75a77","#53b266","#f18a37","#d52b44","#2691da","#8e877b"];
+const INK  = ["#ffffff","#ffffff","#2b2419","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#1e3322","#ffffff","#ffffff","#ffffff","#ffffff"];
+const BONUS = [
+  {k:"x2",  lab:"×2",  txt:"DOUBLEZ LE TOTAL DE VOS CARTES NUMÉRO", n:1},
+  {k:"+2",  lab:"+2",  txt:"AJOUTEZ 2 À VOTRE SCORE",  n:1},
+  {k:"+4",  lab:"+4",  txt:"AJOUTEZ 4 À VOTRE SCORE",  n:1},
+  {k:"+6",  lab:"+6",  txt:"AJOUTEZ 6 À VOTRE SCORE",  n:1},
+  {k:"+8",  lab:"+8",  txt:"AJOUTEZ 8 À VOTRE SCORE",  n:1},
+  {k:"+10", lab:"+10", txt:"AJOUTEZ 10 À VOTRE SCORE", n:1}
+];
+const SPEC = [
+  {k:"stop",   lab:"STOP",            txt:"CIBLEZ UN JOUEUR — il sort et compte ses points", n:3},
+  {k:"trois",  lab:"TROIS À LA SUITE",txt:"CIBLEZ UN JOUEUR — il retourne 3 cartes de suite",  n:3},
+  {k:"chance", lab:"SECONDE CHANCE",  txt:"JETEZ-LA AU LIEU DE SAUTER — conservez cette carte", n:3}
+];
+const CIBLE = 200;
+const PALETTE = ["#e8b64c","#3cc4b8","#f4685c","#7fb2f0","#b48cf0","#8ed36a","#f0894c","#e86fae"];
+
+/* ---------- installation (PWA) ---------- */
+let installPrompt = null;
+if (typeof window !== "undefined" && typeof window.addEventListener === "function"){
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; });
+  window.addEventListener("appinstalled", () => { installPrompt = null; });
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
+}
+
+/* ---------- état ---------- */
+let S = null;
+let undoStack = [];
+
+function freshState(){
+  return { started:false, round:1, activeId:null, gameOver:false, winner:null,
+           players:[], history:[], flip7:null, message:null, lastRound:null,
+           mode:"compile", compile:null, lastCompile:null };
+}
+function player(){ return S.players.find(p => p.id === S.activeId); }
+/* ---------- logique pure (testable) ---------- */
+function numSum(cards){ return cards.filter(c=>c.t==="n").reduce((a,c)=>a+c.v,0); }
+function uniqueNums(cards){ return new Set(cards.filter(c=>c.t==="n").map(c=>c.v)).size; }
+function hasX2(cards){ return cards.some(c=>c.t==="b" && c.k==="x2"); }
+function bonusSum(cards){ return cards.filter(c=>c.t==="b" && c.k!=="x2").reduce((a,c)=>a+parseInt(c.k.slice(1)),0); }
+/** Score de manche selon l'ordre officiel : Numéros → ×2 → Bonus → +15 si Flip 7 */
+function roundScore(cards, flipped7){
+  const base = numSum(cards);
+  let s = hasX2(cards) ? base*2 : base;
+  s += bonusSum(cards);
+  if (flipped7 || uniqueNums(cards) >= 7) s += 15;
+  return s;
+}
+function explainScore(cards, flipped7){
+  const parts = [];
+  parts.push("Numéros " + numSum(cards));
+  if (hasX2(cards)) parts.push("×2 → " + (numSum(cards)*2));
+  if (bonusSum(cards)) parts.push("Bonus +" + bonusSum(cards));
+  if (flipped7 || uniqueNums(cards) >= 7) parts.push("Flip 7 +15");
+  return parts.join(" · ");
+}
+
+/* ---------- rendu ---------- */
+const el = (id) => document.getElementById(id);
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* Face SVG reproduisant le style officiel de chaque carte.
+   Si un fichier existe dans /cards/, il est utilisé automatiquement à la place. */
+function faceSVG(kind, key){
+  const id = "g" + Math.random().toString(36).slice(2, 7);
+  /* accent = bandes latérales du décor Art déco de la vraie carte */
+  const frame = (fill, inner, accent) => `
+    <svg class="svgface" viewBox="0 0 100 140" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        ${fill.startsWith("url(") ? "" : `<linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="${fill}" stop-opacity=".94"/>
+          <stop offset="1" stop-color="${fill}"/>
+        </linearGradient>`}
+        ${fill.startsWith("url(") ? `<linearGradient id="${id}0" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#d63e48"/><stop offset=".28" stop-color="#e7a93b"/>
+          <stop offset=".52" stop-color="#4fb3a3"/><stop offset=".76" stop-color="#6a5acd"/>
+          <stop offset="1" stop-color="#d63e48"/></linearGradient>` : ""}
+      </defs>
+      <rect width="100" height="140" rx="7" fill="#fdf8ee"/>
+      <rect x="3" y="3" width="94" height="134" rx="5.5" fill="${fill.startsWith("url(") ? `url(#${id}0)` : `url(#${id})`}"/>
+      ${accent ? `<path d="M3 8.5A5.5 5.5 0 0 1 8.5 3h4.5v134H8.5A5.5 5.5 0 0 1 3 131.5z" fill="${accent}" opacity=".95"/>
+      <path d="M97 8.5A5.5 5.5 0 0 0 91.5 3H87v134h4.5A5.5 5.5 0 0 0 97 131.5z" fill="${accent}" opacity=".95"/>
+      <rect x="3" y="3" width="94" height="134" rx="5.5" fill="none" stroke="rgba(253,248,238,.55)" stroke-width=".8"/>` : ""}
+      <rect x="3" y="3" width="94" height="134" rx="5.5" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.2"/>
+      <text x="50" y="12" text-anchor="middle" font-size="5.4" letter-spacing=".7"
+            font-family="ui-rounded,system-ui,sans-serif" font-weight="800" fill="rgba(255,255,255,.82)">STOP OU ENCORE ?</text>
+      ${inner}
+      <text x="50" y="134" text-anchor="middle" font-size="6" letter-spacing="1"
+            font-family="ui-rounded,system-ui,sans-serif" font-weight="800" fill="rgba(0,0,0,.32)">FLIP 7</text>
+    </svg>`;
+  if (kind === "n"){
+    const v = +key, c = COUL[v], a = ACC[v], ink = INK[v];
+    return frame(v === 0 ? "url(#rainbow)" : c, `
+      <text x="50" y="68" text-anchor="middle" font-size="46" font-weight="900"
+            font-family="ui-rounded,system-ui,sans-serif" fill="${ink}" opacity=".97"
+            ${v === 0 ? 'stroke="rgba(0,0,0,.45)" stroke-width="1.4" paint-order="stroke"' : ""}>${v}</text>
+      <text x="50" y="91" text-anchor="middle" font-size="10.5" letter-spacing="1.6"
+            font-family="ui-rounded,system-ui,sans-serif" font-weight="800" fill="${ink}" opacity=".95">${MOTS[v]}</text>
+      <circle cx="16" cy="112" r="3.2" fill="${ink}" opacity=".4"/>
+      <circle cx="84" cy="112" r="3.2" fill="${ink}" opacity=".4"/>`, a);
+  }
+  if (kind === "b"){
+    const b = BONUS.find(x => x.k === key);
+    const big = b.k === "x2" ? "×2" : b.k;
+    return frame("#c99a3c", `
+      <text x="50" y="70" text-anchor="middle" font-size="${b.k==='x2'?40:38}" font-weight="900"
+            font-family="ui-rounded,system-ui,sans-serif" fill="#fff8e6">${big}</text>
+      <text x="50" y="92" text-anchor="middle" font-size="6" letter-spacing=".4"
+            font-family="ui-rounded,system-ui,sans-serif" font-weight="700" fill="rgba(255,248,230,.92)">${b.k==='x2'?'CARTES NUMÉRO':'À VOTRE SCORE'}</text>`);
+  }
+  const s = SPEC.find(x => x.k === key);
+  const fill = key === "stop" ? "#2f7fc4" : key === "trois" ? "#8a55c9" : "#2fae6a";
+  const lines = s.lab.split(" ");
+  return frame(fill, `
+    <text x="50" y="${lines.length>1?56:60}" text-anchor="middle" font-size="${key==='chance'?11:14}" font-weight="900"
+          font-family="ui-rounded,system-ui,sans-serif" fill="#fff">${lines[0]}</text>
+    ${lines[1] ? `<text x="50" y="74" text-anchor="middle" font-size="14" font-weight="900"
+          font-family="ui-rounded,system-ui,sans-serif" fill="#fff">${lines.slice(1).join(" ")}</text>` : ""}
+    <text x="50" y="${lines.length>1?94:84}" text-anchor="middle" font-size="5.6" letter-spacing=".3"
+          font-family="ui-rounded,system-ui,sans-serif" font-weight="700" fill="rgba(255,255,255,.9)">${key==='stop'?'EFFET IMMÉDIAT':key==='trois'?'EFFET IMMÉDIAT':'CONSERVEZ CETTE CARTE'}</text>`);
+}
+function fileFor(kind, key){
+  if (kind === "n") return "cards/num-" + key + ".jpg";
+  if (kind === "b") return "cards/bonus-" + (key === "+10" ? "plus10" : key === "x2" ? "x2" : "plus" + key.slice(1)) + ".jpg";
+  return "cards/special-" + key + ".jpg";
+}
+/** rendu d'une carte ; si une photo réelle existe dans /cards, elle prend le dessus */
+function cardHTML(kind, key, used){
+  const cls = "card";
+  const f = fileFor(kind, key);
+  return `<button class="${cls}" data-kind="${kind}" data-key="${esc(key)}" type="button" aria-label="carte ${esc(key)}">
+    <span class="svgface">${faceSVG(kind, key)}</span>
+    <img src="${f}" alt="" loading="lazy" style="display:none"
+         onload="this.style.display='block';this.previousElementSibling.style.display='none'">
+  </button>`;
+}
+
+/* ---------- ajustement plein écran : tout doit tenir sans défiler ---------- */
+function fitCards(){
+  const app = el("app");
+  if (!app) return;
+  const bands = [...app.querySelectorAll(".trays")];
+  const trays = [...app.querySelectorAll(".tray")];
+  if (!trays.length) return;
+  const W = app.clientWidth, H = app.clientHeight;
+  if (!W || !H) return;
+
+  // écarts réellement appliqués (on ne les suppose jamais)
+  const GAP  = parseFloat(getComputedStyle(app).rowGap) || 7;
+  const RGAP = parseFloat(getComputedStyle(trays[0]).columnGap) || 6;
+  const BGAP = parseFloat(getComputedStyle(bands[0] || trays[0]).rowGap) || 10;
+
+  // 1) hauteur prise par tout ce qui n'est pas un bac
+  let fixed = 0, flow = 0;
+  [...app.children].forEach(ch => {
+    if (ch.classList.contains("banner")) return;      // messages superposés : hors flux
+    flow++;
+    if (!ch.classList.contains("trays")) fixed += ch.offsetHeight || 0;
+  });
+  fixed += GAP * Math.max(0, flow - 1) + BGAP * Math.max(0, bands.length - 1);
+  bands.forEach(b => {
+    const kids = [...b.children];
+    kids.forEach(ch => { if (!ch.classList.contains("tray")) fixed += ch.offsetHeight || 0; });
+    fixed += BGAP * Math.max(0, kids.length - 1);
+  });
+
+  // 2) géométrie : Numéros en N colonnes, Bonus en 6 colonnes sur UNE rangée
+  const hasNums  = trays.some(t => (+t.dataset.n || 0) >= 13);
+  const hasBonus = trays.some(t => (+t.dataset.n || 0) === 6);
+  const hasSpec  = trays.some(t => (+t.dataset.n || 0) === 3);
+  const petit = W < 560, court = H < 520;
+  // on essaie plusieurs découpages et on garde celui qui donne les plus grosses cartes
+  const essais = court ? [13, 7, 5, 4]
+              : petit ? [5, 4, 7, 13]
+                      : [7, 5, 13, 4];
+  let cw = 0, cwb = 0, numCols = essais[0];
+  essais.forEach(cols => {
+    const nr = hasNums ? Math.max(1, Math.ceil(13 / cols)) : 0;
+    const r = Math.max(1, nr + (hasBonus ? 1 : 0) + (hasSpec ? 1 : 0));
+    const bw = (W - RGAP * (cols - 1)) / cols;
+    const bh = ((H - fixed - RGAP * r) / r) / 1.4;
+    const c = Math.max(0, Math.min(bw, bh, 140));
+    if (c > cw){ cw = c; numCols = cols; }
+  });
+  cw = Math.max(18, cw);
+  cwb = Math.min(cw, (W - RGAP * 5) / 6);
+
+  trays.forEach(t => {
+    const n = +t.dataset.n || 13;
+    t.style.setProperty("--cols", n >= 13 ? numCols : n >= 6 ? 6 : 3);
+  });
+  const appliquer = () => {
+    app.style.setProperty("--cw", cw.toFixed(1) + "px");
+    app.style.setProperty("--cwb", cwb.toFixed(1) + "px");
+  };
+  appliquer();
+
+  // 3) VÉRIFIER pour de vrai : on mesure les cartes rendues et on rétrécit si besoin
+  const deborde = () => {
+    const ar = app.getBoundingClientRect();
+    const cs = app.querySelectorAll(".tray .card");
+    for (let k = 0; k < cs.length; k++){
+      const r = cs[k].getBoundingClientRect();
+      if (r.width < 2) continue;
+      if (r.left < ar.left - 0.5 || r.right > ar.right + 0.5 ||
+          r.top < ar.top - 0.5 || r.bottom > ar.bottom + 0.5) return true;
+    }
+    return false;
+  };
+  for (let passe = 0; passe < 8 && deborde(); passe++){
+    cw *= 0.96;
+    cwb = Math.min(cw, (W - RGAP * 5) / 6);
+    appliquer();
+  }
+}
+
+function render(){
+  const root = el("app");
+  if (!S) S = freshState();
+  if (S.mode === undefined) S.mode = "compile";
+  if (!S.started) return renderSetup(root);
+  if (S.gameOver) return renderWin(root);
+  if (S.lastRound) return renderRoundEnd(root);
+  if (S.compile) return renderCompile(root);
+  renderTable(root);
+}
+
+/* un message ne reste pas au milieu du chemin : il part tout seul après 6 s, ou au toucher */
+let msgTimer = null;
+function armMessageTimer(){
+  if (typeof setTimeout !== "function") return;
+  if (msgTimer) clearTimeout(msgTimer);
+  msgTimer = setTimeout(() => {
+    msgTimer = null;
+    if (S && S.message){ S.message = null; save(); render(); }
+  }, 6000);
+  if (msgTimer && typeof msgTimer.unref === "function") msgTimer.unref();
+}
+
+/* recalcule la taille des cartes après chaque rendu et à chaque rotation */
+const raf = (typeof requestAnimationFrame === "function")
+  ? requestAnimationFrame : function(f){ return setTimeout(f, 0); };
+render = (function(orig){
+  return function(){
+    orig();
+    const bn = (typeof document !== "undefined" && typeof document.querySelector === "function")
+      ? document.querySelector(".banner") : null;
+    if (bn && !bn.onclick) bn.onclick = () => {
+      if (S.message){ S.message = null; save(); render(); }
+    };
+    if (S.message) armMessageTimer();
+    fitCards();      // tout de suite : la page ne s'affiche jamais « de travers »
+    raf(fitCards);   // puis une passe de confirmation
+  };
+})(render);
+if (typeof window !== "undefined" && window.addEventListener){
+  window.addEventListener("resize", () => raf(fitCards));
+  window.addEventListener("orientationchange", () => setTimeout(fitCards, 150));
+}
+
+/* ----- écran de départ ----- */
+function renderSetup(root){
+  root.innerHTML = `
+    <h1><span class="logo">7</span><span>Flip&nbsp;7<br><span class="tagline">compteur de points</span></span></h1>
+    <p class="muted small">Premier à <b style="color:var(--gold)">${CIBLE}</b> points. Choisis comment entrer les points.</p>
+    <div class="panel">
+      <h2>Méthode</h2>
+      <div class="row">
+        <button class="btn ${S.mode === "compile" ? "primary" : "ghost"}" id="mCompile" style="flex:1">
+          Compilation en fin de manche</button>
+        <button class="btn ${S.mode === "live" ? "primary" : "ghost"}" id="mLive" style="flex:1">
+          Suivi en direct</button>
+      </div>
+      <p class="small muted">${S.mode === "compile"
+        ? "Pendant la manche on ne touche pas à l'app : à la fin, tu compiles les cartes de chaque joueur un par un."
+        : "Tu cliques les cartes au fur et à mesure : saut, Flip 7 et Seconde chance se détectent tout seuls."}</p>
+    </div>
+    <div class="panel grow" style="flex:1 1 auto;min-height:0">
+      <h2 style="flex:0 0 auto">Joueurs</h2>
+      <div class="plist" id="plist" style="overflow-y:auto;min-height:0;flex:1 1 auto"></div>
+      <p class="small warn" id="dupWarn" style="display:none">Deux joueurs portent le même nom — donne-leur des noms différents pour commencer.</p>
+      <div class="row"><button class="btn ghost" id="addP">+ Ajouter un joueur</button></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="start" style="flex:1">Commencer la partie</button>
+    </div>
+    <p class="small muted" style="margin-top:10px">
+      Seconde chance, STOP, Trois à la suite : aucun point. La compilation ne demande que les
+      cartes Numéro et les Bonus.
+    </p>`;
+  const setMode = (m) => { S.mode = m; if (m === "compile") S.compile = null; save(); render(); };
+  el("mCompile").onclick = () => setMode("compile");
+  el("mLive").onclick = () => setMode("live");
+  const list = el("plist");
+  S.players.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<span class="avatar" style="background:${p.color};width:30px;height:30px;font-size:14px">${initial(p.name)}</span>
+      <input type="text" value="${esc(p.name)}" data-i="${i}" maxlength="14" style="flex:1;min-width:120px">
+      ${S.players.length > 2 ? `<button class="btn danger" data-del="${i}" style="min-height:46px">✕</button>` : ""}`;
+    list.appendChild(row);
+  });
+  const nameInputs = () => [...list.querySelectorAll("input")];
+  const checkNames = () => {
+    const seen = {}, dup = new Set();
+    nameInputs().forEach(inp => {
+      const k = inp.value.trim().toLowerCase();
+      if (!k) return;
+      if (seen[k] !== undefined){ dup.add(seen[k]); dup.add(inp.dataset.i); }
+      else seen[k] = inp.dataset.i;
+    });
+    nameInputs().forEach(inp => inp.classList.toggle("bad", dup.has(inp.dataset.i)));
+    const w = el("dupWarn");
+    if (w) w.style.display = dup.size ? "block" : "none";
+    const b = el("start");
+    if (b) b.disabled = dup.size > 0;
+    return dup.size === 0;
+  };
+  nameInputs().forEach(inp => {
+    inp.addEventListener("input", e => {
+      S.players[+e.target.dataset.i].name = e.target.value;
+      save(); checkNames();
+    });
+    inp.addEventListener("blur", e => {
+      const i = +e.target.dataset.i;
+      const v = e.target.value.trim();
+      S.players[i].name = v || "Joueur " + (i + 1);
+      e.target.value = S.players[i].name;
+      save(); checkNames();
+    });
+  });
+  checkNames();
+  list.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", e => {
+    S.players.splice(+e.target.dataset.del, 1); save(); render();
+  }));
+  el("addP").onclick = () => {
+    if (S.players.length >= 8) return;
+    S.players.push({ id: "p" + (Date.now() + Math.random()), name: "Joueur " + (S.players.length + 1),
+                     color: PALETTE[S.players.length % PALETTE.length], total: 0, cards: [], chance: false, status: "active" });
+    save(); render();
+  };
+  el("start").onclick = () => { if (!checkNames()) return; startGame(true); };
+}
+
+/* ----- table de jeu ----- */
+function renderTable(root){
+  if (S.mode === "compile") return renderCompileIntro(root);
+  const p = player();
+  const actives = S.players.filter(x => x.status === "active");
+  const forced = p && p.forced > 0;
+  root.innerHTML = `
+    <div class="topbar">
+      <div class="row nowrap" style="gap:7px;min-width:0">
+        <span class="badge">Manche <b>${S.round}</b></span>
+        <span class="badge">${actives.length} en jeu</span>
+      </div>
+      <div class="row nowrap" style="gap:6px;flex:0 0 auto">
+        <button class="btn ghost small" id="undo" style="width:44px;padding:0" title="Annuler la dernière action" aria-label="Annuler"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 4 10l5 5"/><path d="M4 10h8a6 6 0 0 1 0 12h-1"/></svg></button>
+        <button class="btn ghost small" id="scores" style="width:40px;padding:0" title="Voir les points" aria-label="Voir les points"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 19v-6M11 19V6M17 19v-4"/></svg></button>
+        <button class="btn ghost small" id="menu" style="width:40px;padding:0" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      </div>
+    </div>
+    ${S.message ? `<div class="banner ${S.message.bad ? "bad" : ""}">${S.message.txt}</div>` : ""}
+    ${forced ? `<div class="banner"><b>${esc(p.name)}</b> doit retourner ${p.forced} carte${p.forced > 1 ? "s" : ""} de plus (Trois à la suite).</div>` : ""}
+
+
+    <div class="panel grow" style="flex:0 1 auto;max-height:29vh;overflow-y:auto;min-height:0">
+      <h2>Joueurs — ${esc(p ? p.name : "")} joue</h2>
+      <div id="players"></div>
+    </div>
+
+    <div class="trays">
+      <div class="row" style="justify-content:space-between">
+        <b>Cartes piochées</b>
+        <span class="small muted ellip">clic = carte pour ${esc(p ? p.name : "—")}${actives.length === 2 && !forced ? " · le donneur offre une carte à chacun" : ""}</span>
+      </div>
+      <div class="tray" id="tnum" data-n="13"></div>
+      <div class="tray" id="tbonus" data-n="6"></div>
+      <div class="tray" id="tspec" data-n="3"></div>
+    </div>
+    <div class="bottombar">
+      <button class="btn primary" id="stay" style="width:100%">Stopper ${esc(p ? p.name : "")} — encaisser</button>
+    </div>`;
+
+  const pl = el("players");
+  S.players.forEach(pl2 => pl.appendChild(playerRow(pl2)));
+  pl.querySelectorAll("[data-pick]").forEach(node => node.addEventListener("click", e => {
+    S.activeId = e.currentTarget.dataset.pick; S.message = null; save(); render();
+  }));
+
+  const tn = el("tnum"), tb = el("tbonus"), ts = el("tspec");
+  for (let v = 0; v <= 12; v++){
+    const wrap = document.createElement("div");
+    wrap.innerHTML = cardHTML("n", v).replace('class="card', 'class="card pick');
+    tn.appendChild(wrap.firstChild);
+  }
+  BONUS.forEach(b => {
+    const w = document.createElement("div"); w.innerHTML = cardHTML("b", b.k).replace('class="card','class="card pick');
+    tb.appendChild(w.querySelector(".card")); });
+  SPEC.forEach(s => {
+    const w = document.createElement("div"); w.innerHTML = cardHTML("s", s.k).replace('class="card','class="card pick');
+    ts.appendChild(w.querySelector(".card")); });
+
+  document.querySelectorAll(".tray .card").forEach(c => c.addEventListener("click", e => {
+    const b = e.currentTarget; draw(b.dataset.kind, b.dataset.key);
+  }));
+  el("stay").onclick = recall;
+  el("undo").onclick = undo;
+  el("menu").onclick = openMenu;
+  const sb = el("scores"); if (sb) sb.onclick = openScores;
+}
+
+/* ============ MODE COMPILATION (saisie joueur par joueur en fin de manche) ============ */
+
+/* écran d'attente entre les manches */
+function renderCompileIntro(root){
+  root.innerHTML = `
+    <div class="topbar">
+      <div class="row">
+        <span class="badge">Manche ${S.round}</span>
+        <span class="badge">${S.players.length} joueurs</span>
+      </div>
+      <button class="btn ghost small" id="scores" style="width:40px;padding:0" title="Voir les points" aria-label="Voir les points"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 19v-6M11 19V6M17 19v-4"/></svg></button>
+        <button class="btn ghost small" id="menu" style="width:40px;padding:0" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </div>
+    <h2>Pointage de la manche ${S.round}</h2>
+    <div id="players"></div>
+    <div class="panel">
+      <p class="small muted">Jouez la manche avec les vraies cartes. Quand tout le monde a stoppé ou sauté,
+      compile les cartes de chaque joueur, un par un.</p>
+      <button class="btn primary" id="goCompile" style="width:100%">Compiler les joueurs →</button>
+    </div>`;
+  const pl = el("players");
+  S.players.forEach(pl2 => {
+    const n = document.createElement("div");
+    n.className = "player";
+    n.innerHTML = `<div class="phead">
+        <div class="row" style="gap:8px"><span class="avatar" style="background:${pl2.color};width:28px;height:28px;font-size:13px">${initial(pl2.name)}</span>
+          <span class="pname">${esc(pl2.name)}</span></div>
+        <div class="ptotal">${pl2.total}</div></div>`;
+    pl.appendChild(n);
+  });
+  el("goCompile").onclick = startCompile;
+  el("menu").onclick = openMenu;
+  const sb = el("scores"); if (sb) sb.onclick = openScores;
+}
+
+/* bac de cartes réutilisable (Numéro + Bonus) */
+function buildTray(container, kind, selected){
+  const keys = kind === "n" ? Array.from({length: 13}, (_, i) => i) : BONUS.map(b => b.k);
+  keys.forEach(key => {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = cardHTML(kind, key, false).replace('class="card', 'class="card pick');
+    const b = wrap.firstChild;
+    if (selected && selected.has(kind + ":" + key)) b.classList.add("sel");
+
+    container.appendChild(b);
+  });
+}
+
+function ce(){ return S.compile ? S.compile.entries[S.players[S.compile.idx].id] : null; }
+function cScore(e){
+  if (!e) return 0;
+  if (e.busted) return 0;
+  if (e.manual !== "" && e.manual !== null && e.manual !== undefined) return Math.max(0, parseInt(e.manual) || 0);
+  return roundScore(e.cards, uniqueNums(e.cards) >= 7);
+}
+function startCompile(){
+  S.compile = { idx: 0, entries: {} };
+  S.players.forEach(p => S.compile.entries[p.id] = { cards: [], busted: false, manual: "" });
+  S.message = null; save(); render();
+}
+/* bascule une carte du bac : un 2e tap la désélectionne.
+   Comme tout est un ensemble, un doublon est structurellement impossible. */
+function cToggle(kind, key){
+  const e = ce();
+  if (!e || e.busted) return;
+  const nom = S.players[S.compile.idx].name;
+  const idx = e.cards.findIndex(c => c.t === kind && (kind === "n" ? c.v === +key : c.k === key));
+  if (idx >= 0){ cRemove(idx); return; }
+  // 7 Numéros différents = Flip 7 : la manche s'arrête, donc pas de 8e carte
+  if (kind === "n" && uniqueNums(e.cards) >= 7){
+    S.message = { bad: true, txt: `⛔ ${esc(nom)} a déjà 7 Numéros différents : la manche s'est arrêtée ` +
+      `sur un Flip 7, il ne peut pas en avoir un 8e.` };
+    save(); render(); return;
+  }
+  snapshot();
+  if (kind === "n") e.cards.push({ t:"n", v: +key });
+  else e.cards.push({ t:"b", k: key });
+  e.manual = "";
+  S.message = null;
+  save(); render();
+  scorePop();
+  if (kind === "n" && uniqueNums(e.cards) === 7) celebrate("FLIP 7 !");
+}
+function cRemove(i){
+  const e = ce();
+  if (!e || i < 0 || i >= e.cards.length) return;
+  snapshot();
+  e.cards.splice(i, 1);
+  e.manual = "";
+  S.message = null;
+  save(); render();
+}
+function cWipe(){
+  const e = ce();
+  if (!e || !e.cards.length) return;
+  snapshot();
+  e.cards = []; e.manual = "";
+  S.message = null;
+  save(); render();
+}
+function cFinish(){
+  const rows = [];
+  S.players.forEach(p => {
+    const e = S.compile.entries[p.id];
+    let sc, d;
+    if (e.busted){ sc = 0; d = "a sauté — 0 point"; }
+    else if (e.manual !== "" && e.manual !== null && e.manual !== undefined){
+      sc = Math.max(0, parseInt(e.manual) || 0);
+      d = "saisi à la main" + (e.cards.length ? " (" + e.cards.length + " carte" + (e.cards.length > 1 ? "s" : "") + " pointée" + (e.cards.length > 1 ? "s" : "") + ")" : "");
+    } else {
+      sc = roundScore(e.cards, uniqueNums(e.cards) >= 7);
+      d = explainScore(e.cards, uniqueNums(e.cards) >= 7);
+    }
+    p.total += sc;
+    rows.push({ n: p.name, s: sc, d });
+  });
+  S.history.push(rows);
+  S.lastRound = rows;
+  S.lastCompile = { entries: JSON.parse(JSON.stringify(S.compile.entries)),
+                    applied: rows.map((r, i) => ({ id: S.players[i].id, sc: r.s })) };
+  const w = S.players.find(p => p.total >= CIBLE);
+  if (w){ S.gameOver = true; S.winner = w.name; }
+  S.compile = null;
+  save(); render();
+}
+function renderCompile(root){
+  const p = S.players[S.compile.idx];
+  const e = ce();
+  const done = [];
+  S.players.forEach((x, i) => { if (i < S.compile.idx) done.push(esc(x.name) + " +" + cScore(S.compile.entries[x.id])); });
+  const last = S.compile.idx >= S.players.length - 1;
+  root.innerHTML = `
+    <div class="topbar">
+      <div class="row">
+        <span class="badge">Manche <b>${S.round}</b></span>
+        <span class="badge">Joueur <b>${S.compile.idx + 1}</b>/${S.players.length}</span>
+      </div>
+      <button class="btn ghost small" id="scores" style="width:40px;padding:0" title="Voir les points" aria-label="Voir les points"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 19v-6M11 19V6M17 19v-4"/></svg></button>
+        <button class="btn ghost small" id="menu" style="width:40px;padding:0" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+    </div>
+    ${S.message ? `<div class="banner ${S.message.bad ? "bad" : ""}">${S.message.txt}</div>` : ""}
+    <div class="scorecard">
+      <div class="prow">
+        <div class="row nowrap" style="gap:10px;min-width:0">
+          <span class="avatar" style="background:${p.color}">${initial(p.name)}</span>
+          <span class="pname ellip">${esc(p.name)}</span>
+        </div>
+        <div class="row nowrap" style="gap:9px;flex:0 0 auto">
+          <span class="badge" id="csel" style="min-width:70px;text-align:center">${e.cards.length} carte${e.cards.length > 1 ? "s" : ""}</span>
+          <div class="pscore" id="cprev">${cScore(e)}</div>
+        </div>
+      </div>
+      <div class="fixedline">
+        <span class="ellip small muted" id="cdet">${e.busted ? "a sauté — 0 point" : (e.manual !== "" && e.manual != null ? "saisi à la main" : explainScore(e.cards, uniqueNums(e.cards) >= 7))}</span>
+        <button class="btn ghost small" id="cWipe" ${e.cards.length ? "" : "disabled"}>Tout éteindre</button>
+      </div>
+      <div class="prog" id="prog">${done.length ? "✓ " + done.join(" · ") : ""}</div>
+      <div class="row nowrap" style="gap:7px">
+        <button class="btn ghost" id="cPrev" style="flex:0 0 auto;width:52px;padding:0" ${S.compile.idx === 0 ? "disabled" : ""}>◀</button>
+        <button class="btn danger nowrap" id="cBust" style="flex:1.25;font-size:14.5px">${e.busted ? "↺ Pas sauté" : "Il a sauté"}</button>
+        <button class="btn primary nowrap" id="cNext" style="flex:1.75;font-size:15px">${last ? "Valider" : "Suivant →"}</button>
+      </div>
+      <details id="manBox">
+        <summary>Saisie manuelle du total</summary>
+        <input id="cman" type="number" inputmode="numeric" min="0" placeholder="total de la manche"
+               value="${e.manual === null || e.manual === undefined ? "" : esc(e.manual)}" style="margin-top:7px">
+      </details>
+    </div>
+    <div class="trays">
+      <div class="tray" id="tnum" data-n="13"></div>
+      <div class="tray" id="tbonus" data-n="6"></div>
+    </div>`;
+  const sel = new Set(e.cards.map(c => c.t + ":" + (c.t === "n" ? c.v : c.k)));
+  buildTray(el("tnum"), "n", sel);
+  buildTray(el("tbonus"), "b", sel);
+  document.querySelectorAll(".tray .card").forEach(c => c.addEventListener("click", ev => {
+    const b = ev.currentTarget; cToggle(b.dataset.kind, b.dataset.key);
+  }));
+  const wipe = el("cWipe");
+  if (wipe) wipe.onclick = cWipe;
+  el("menu").onclick = openMenu;
+  const sb = el("scores"); if (sb) sb.onclick = openScores;
+  const mb = el("manBox");
+  if (mb) mb.ontoggle = () => raf(fitCards);
+  el("cPrev").onclick = () => { if (S.compile.idx > 0){ S.compile.idx--; S.message = null; save(); render(); } };
+  el("cBust").onclick = () => { snapshot(); e.busted = !e.busted; if (e.busted) e.cards = []; save(); render(); };
+  el("cNext").onclick = () => { if (last) return cFinish(); S.compile.idx++; S.message = null; save(); render(); };
+  const inp = el("cman");
+  inp.addEventListener("input", () => {
+    e.manual = inp.value;
+    el("cprev").textContent = cScore(e);
+    el("cdet").textContent = inp.value === "" ? explainScore(e.cards, uniqueNums(e.cards) >= 7) : "saisi à la main";
+    save();
+    raf(fitCards);
+  });
+}
+
+/* initiale du joueur, pour la pastille-avatar */
+function initial(name){
+  const t = String(name === undefined || name === null ? "?" : name).trim();
+  const ch = t.charAt(0).toUpperCase();
+  return esc(ch || "?");
+}
+/* le score fait « pop » quand il change : un transform, donc rien ne se déplace */
+function scorePop(){
+  const n = el("cprev");
+  if (!n || !n.classList) return;
+  n.classList.remove("pop");
+  void n.offsetWidth;
+  n.classList.add("pop");
+  setTimeout(() => { try { n.classList.remove("pop"); } catch(e){} }, 430);
+}
+/* petite secousse du joueur (saut/bust) */
+function shakePlayer(id){
+  if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+  const n = document.querySelector('.player[data-id="' + id + '"]');
+  if (!n || !n.classList) return;
+  n.classList.add("shake");
+  setTimeout(() => { try { n.classList.remove("shake"); } catch(e){} }, 470);
+}
+/* confettis + flash : superposés, jamais cliquables, retirés tout seuls.
+   Enveloppé dans try/catch : dans un environnement sans vrai DOM (tests), on ne fait rien. */
+function celebrate(txt){
+  try{
+    if (typeof document === "undefined" || !document.body || !document.body.appendChild) return;
+    const old = document.getElementById && document.getElementById("party");
+    if (old && old.remove) old.remove();
+    const wrap = document.createElement("div");
+    wrap.id = "party";
+    const colors = ["#f0bb52", "#f4685c", "#42cdbe", "#a78bfa", "#ffffff", "#46c983"];
+    const put = (el2, k, v) => { try { if (el2.style.setProperty) el2.style.setProperty(k, v); else el2.style[k] = v; } catch(e){} };
+    for (let i = 0; i < 46; i++){
+      const bit = document.createElement("i");
+      const w = 6 + Math.random() * 7;
+      put(bit, "left", (Math.random() * 100).toFixed(1) + "%");
+      put(bit, "width", w.toFixed(1) + "px");
+      put(bit, "height", (w * 1.7).toFixed(1) + "px");
+      put(bit, "background", colors[i % colors.length]);
+      put(bit, "border-radius", Math.random() > .5 ? "50%" : "2px");
+      put(bit, "--dx", ((Math.random() * 120) - 60).toFixed(0) + "px");
+      put(bit, "animation-duration", (1.15 + Math.random() * 0.85).toFixed(2) + "s");
+      put(bit, "animation-delay", (Math.random() * 0.22).toFixed(2) + "s");
+      put(bit, "opacity", (0.75 + Math.random() * 0.25).toFixed(2));
+      wrap.appendChild(bit);
+    }
+    document.body.appendChild(wrap);
+    if (txt){
+      const f = document.createElement("div");
+      f.className = "flash";
+      f.textContent = txt;
+      document.body.appendChild(f);
+      setTimeout(() => { try { if (f.remove) f.remove(); } catch(e){} }, 1650);
+    }
+    setTimeout(() => { try { if (wrap.remove) wrap.remove(); } catch(e){} }, 2500);
+  } catch(e){ /* décor seulement : jamais bloquant */ }
+}
+
+function playerRow(p){
+  const node = document.createElement("div");
+  const isActive = p.id === S.activeId && p.status === "active";
+  node.className = "player " + p.status + (isActive ? " active" : "");
+  node.dataset.id = p.id;
+  const tags = [];
+  if (p.status === "busted") tags.push('<span class="tag bust">a sauté — 0</span>');
+  if (p.status === "stopped") tags.push('<span class="tag stop">a stoppé — ' + roundScore(p.cards, false) + '</span>');
+  if (p.status === "frozen") tags.push('<span class="tag frozen">stoppé par un STOP — ' + (p.banked ?? 0) + '</span>');
+  if (p.chance && p.status === "active") tags.push('<span class="tag">Seconde chance en main</span>');
+  if (p.forced > 0) tags.push('<span class="tag">doit tirer ' + p.forced + '</span>');
+  node.innerHTML = `
+    <div class="phead">
+      <div class="row" style="gap:8px">
+        <span class="avatar" style="background:${p.color};width:24px;height:24px;font-size:12px">${initial(p.name)}</span>
+        <span class="pname" style="font-size:15px">${esc(p.name)}</span>
+        ${tags.join(" ")}
+      </div>
+      <div style="text-align:right">
+        <div class="ptotal">${p.total}</div>
+        <div class="sub">${p.status === "active" ? "manche : " + roundScore(p.cards, false) : ""}</div>
+      </div>
+    </div>
+    ${p.cards.length ? `<div class="pline">${p.cards.map(c => cardHTML(c.t, c.t === "n" ? c.v : c.k)).join("")}</div>` : ""}`;
+  if (p.status === "active"){
+    node.style.cursor = "pointer";
+    node.dataset.pick = p.id;
+  }
+  return node;
+}
+
+/* ----- fin de manche ----- */
+function renderRoundEnd(root){
+  const rows = S.lastRound;
+  const best = Math.max(...rows.map(r => r.s));
+  root.innerHTML = `
+    <div class="topbar"><span class="badge">Fin de la manche ${S.round}</span></div>
+    ${S.flip7 ? `<div class="banner"><b>FLIP 7 !</b> ${esc(S.flip7)} a retourné 7 Numéros différents — la manche s'arrête tout de suite (+15).</div>` : ""}
+    <div class="panel grow" style="overflow-y:auto;min-height:0">
+      ${rows.map((r, i) => `
+        <div class="scoreline">
+          <div>
+            <b style="color:${S.players[i].color}">${esc(r.n)}</b>
+            <div class="small muted">${esc(r.d || explainScore(S.players[i].cards, false))}</div>
+          </div>
+          <div style="text-align:right">
+            <b style="color:${r.s === best && r.s > 0 ? "var(--gold)" : "inherit"}">+${r.s}</b>
+            <div class="small muted">total ${S.players[i].total}</div>
+          </div>
+        </div>`).join("")}
+    </div>
+    <div class="row">
+      <button class="btn primary" id="next" style="flex:1">Manche ${S.round + 1} →</button>
+      <button class="btn ghost" id="fix">${S.mode === "compile" ? "Corriger la compilation" : "Corriger"}</button>
+    </div>`;
+  el("next").onclick = nextRound;
+  el("fix").onclick = () => {
+    if (S.mode === "compile" && S.lastCompile){
+      S.lastCompile.applied.forEach(a => {
+        const pl = S.players.find(x => x.id === a.id);
+        if (pl) pl.total -= a.sc;
+      });
+      S.history.pop();
+      S.compile = { idx: 0, entries: S.lastCompile.entries };
+      S.lastCompile = null;
+      S.lastRound = null;
+      save(); render(); return;
+    }
+    S.lastRound = null; save(); render();
+  };
+}
+
+/* ----- fin de partie ----- */
+function renderWin(root){
+  root.innerHTML = `
+    <div class="win">
+      <div class="crown">🏆</div>
+      <div class="small muted">Partie terminée — ${CIBLE} points atteints</div>
+      <div class="big">${esc(S.winner)}</div>
+      <div class="muted">${S.players.map(p => esc(p.name) + " " + p.total).join(" · ")}</div>
+    </div>
+    <div class="panel grow" style="overflow-y:auto">
+      <h2>Détail des manches</h2>
+      ${S.history.map((h, i) => `<div class="scoreline"><span class="muted small">Manche ${i + 1}</span>
+        <span class="small">${h.map(x => esc(x.n) + " +" + x.s).join(" · ")}</span></div>`).join("")}
+    </div>
+    <div class="row"><button class="btn primary" id="again" style="flex:1">Nouvelle partie</button></div>`;
+  el("again").onclick = () => { S = freshState(); S.players = defaultPlayers(); save(); render(); };
+  celebrate("🏆 " + esc(S.winner));
+}
+
+/* ----- modales ----- */
+function modal(html, onMount){
+  const m = document.createElement("div");
+  m.className = "modal";
+  m.innerHTML = `<div class="sheet">${html}</div>`;
+  document.body.appendChild(m);
+  const close = () => m.remove();
+  m.addEventListener("click", e => { if (e.target === m) close(); });
+  onMount && onMount(m, close);
+  return close;
+}
+/* ---------- écran des points (objectif 200) ---------- */
+const TARGET = 200;
+function openScores(){
+  const list = [...S.players].sort((a, b) => (b.total || 0) - (a.total || 0));
+  const rows = list.map((p, i) => {
+    const v = p.total || 0;
+    const pct = Math.max(0, Math.min(100, v / TARGET * 100));
+    const enCours = p.status === "active" && p.cards.length ? roundScore(p.cards, false) : null;
+    return `<div class="srow">
+      <div class="row nowrap" style="gap:8px">
+        <span class="avatar" style="background:${p.color};width:22px;height:22px;font-size:11px">${initial(p.name)}</span>
+        <span class="ellip" style="flex:1;min-width:0;font-weight:700">${esc(p.name)}</span>
+        <span style="font-weight:900;font-size:19px;color:${v >= TARGET ? "var(--ok)" : "var(--gold)"}">${v}</span>
+      </div>
+      <div class="pbar"><i style="width:${pct.toFixed(1)}%"></i></div>
+      <div class="small muted ellip">${v >= TARGET ? "Objectif atteint 🏆" : (TARGET - v) + " pts de l'objectif"}${enCours ? " · manche en cours " + enCours : ""}</div>
+    </div>`;
+  }).join("");
+  modal(`<h3>Points</h3>
+    <div class="row" style="flex-direction:column;align-items:stretch;gap:2px">${rows}</div>
+    <p class="small muted" style="text-align:center;margin:10px 0 12px">Premier à ${TARGET} points gagne la partie.</p>
+    <button class="btn" id="close" style="width:100%">Fermer</button>`,
+    (m, close) => { m.querySelector("#close").onclick = close; });
+}
+
+/* ---------- joueurs en cours de partie ---------- */
+function newPlayerId(){
+  const pris = new Set(S.players.map(p => p.id));
+  let n = 1; while (pris.has("p" + n)) n++;
+  return "p" + n;
+}
+function addPlayer(nom){
+  if (S.players.length >= 12){ S.message = { txt:"Douze joueurs, ça fait déjà une tablée.", bad:true }; save(); render(); return; }
+  snapshot();
+  const pris = new Set(S.players.map(p => p.name.trim().toLowerCase()));
+  const base = String(nom || "").trim().slice(0, 16) || ("Joueur " + (S.players.length + 1));
+  let name = base, n = 2;
+  while (pris.has(name.toLowerCase())) name = base + " " + n++;
+  const p = { id:newPlayerId(), name, color:PALETTE[S.players.length % PALETTE.length],
+              total:0, cards:[], chance:false, status:"active", forced:0, banked:0 };
+  S.players.push(p);
+  if (S.compile) S.compile.entries[p.id] = { cards:[], busted:false, manual:"" };
+  if (!S.activeId) S.activeId = p.id;
+  S.message = { txt:`${p.name} entre dans la partie.` };
+  save(); render();
+}
+function removePlayer(id){
+  if (S.players.length <= 1){
+    S.message = { txt:"Il doit rester au moins un joueur.", bad:true }; save(); render(); return;
+  }
+  const i = S.players.findIndex(p => p.id === id);
+  if (i < 0) return;
+  snapshot();
+  const nom = S.players[i].name;
+  S.players.splice(i, 1);
+  if (S.compile){
+    delete S.compile.entries[id];
+    if (S.compile.idx > i || S.compile.idx >= S.players.length){
+      S.compile.idx = Math.min(Math.max(0, S.compile.idx - (S.compile.idx > i ? 1 : 0)), S.players.length - 1);
+    }
+  }
+  if (S.activeId === id) S.activeId = (S.players[i] || S.players[0]).id;
+  S.message = { txt:`${nom} quitte la partie.` };
+  save(); render();
+}
+
+function openMenu(){
+  const close = modal(`<h3>Menu</h3>
+    <div class="row" style="flex-direction:column;align-items:stretch">
+      <div class="small muted" style="margin:-2px 0 -3px">Joueurs · ${S.players.length}</div>
+      ${S.players.map(p => `<div class="row nowrap" style="gap:6px">
+        <span class="ellip" style="flex:1;min-width:0">${esc(p.name)}</span>
+        <span class="small muted" style="flex:0 0 auto">${p.total} pts</span>
+        <button class="btn ghost small" data-del="${p.id}" style="flex:0 0 auto;width:34px;padding:0"
+          aria-label="Retirer ${esc(p.name)}" ${S.players.length < 2 ? "disabled" : ""}>×</button>
+      </div>`).join("")}
+      <div class="row nowrap" style="gap:6px">
+        <input id="newpname" maxlength="16" placeholder="Nom du joueur" class="inp"
+               style="flex:1;min-width:0;font-size:14px;padding:7px 9px">
+        <button class="btn primary small" id="addp" style="flex:0 0 auto">Ajouter</button>
+      </div>
+      ${installPrompt ? '<button class="btn primary" id="minstall">Installer sur l\'écran d\'accueil</button>' : ""}
+      <button class="btn ghost" id="mswitch">Méthode : ${S.mode === "compile" ? "compilation en fin de manche" : "suivi en direct"} ⇄</button>
+      ${S.mode === "compile" && !S.compile ? '<button class="btn ghost" id="mcompile">Compiler cette manche maintenant</button>' : ""}
+      ${undoStack.length ? '<button class="btn ghost" id="mundo">↶ Annuler la dernière action</button>' : ""}
+      <button class="btn ghost" id="rreset">Reprendre la manche (cartes rendues)</button>
+      <button class="btn danger" id="rend">Terminer la partie</button>
+      <button class="btn" id="close">Fermer</button>
+    </div>
+    <p class="small muted" style="text-align:center;margin:8px 0 0">Version ${BUILD}</p>`, (m, close) => {
+      m.querySelector("#mswitch").onclick = () => {
+        S.mode = S.mode === "compile" ? "live" : "compile";
+        S.compile = null; S.message = null;
+        if (S.mode === "live"){ S.players.forEach(x => { x.status = "active"; x.forced = 0; }); S.activeId = S.players[0].id; }
+        save(); close(); render();
+      };
+      const mu = m.querySelector("#mundo");
+      if (mu) mu.onclick = () => { close(); undo(); };
+      const mc = m.querySelector("#mcompile");
+      if (mc) mc.onclick = () => { close(); startCompile(); };
+      m.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+        removePlayer(b.dataset.del); close(); openMenu();
+      });
+      const mi = m.querySelector("#minstall");
+      if (mi) mi.onclick = async () => {
+        mi.disabled = true;
+        try { installPrompt.prompt(); await installPrompt.userChoice; } catch(e){}
+        installPrompt = null; close(); render();
+      };
+      const inp = m.querySelector("#newpname");
+      const ajouter = () => { addPlayer(inp.value); close(); openMenu(); };
+      m.querySelector("#addp").onclick = ajouter;
+      inp.onkeydown = e => { if (e.key === "Enter") ajouter(); };
+      m.querySelector("#rreset").onclick = () => { S.players.forEach(p => { p.cards = []; p.status = "active"; p.chance = false; p.forced = 0; p.banked = 0; }); S.compile = null; S.activeId = S.players[0].id; S.message = null; save(); close(); render(); };
+      m.querySelector("#rend").onclick = () => { S.gameOver = true; S.winner = bestPlayer().name; save(); close(); render(); };
+      m.querySelector("#close").onclick = close;
+    });
+}
+
+/* ----- actions de jeu ----- */
+function snapshot(){
+  undoStack.push(JSON.stringify({ players: S.players, activeId: S.activeId,
+    round: S.round, flip7: S.flip7, lastRound: S.lastRound, message: S.message,
+    compile: S.compile || null, mode: S.mode, lastCompile: S.lastCompile || null }));
+  if (undoStack.length > 120) undoStack.shift();
+}
+function undo(){
+  if (!undoStack.length) return;
+  const st = JSON.parse(undoStack.pop());
+  Object.assign(S, st);
+  save(); render();
+}
+function save(){
+  try { localStorage.setItem("flip7", JSON.stringify(S)); } catch(e){}
+  // la tablée se souvient de ses joueurs d'une partie à l'autre
+  try {
+    if (S && S.players && S.players.length)
+      localStorage.setItem("flip7roster", JSON.stringify(
+        S.players.map(p => String(p.name || "").trim()).filter(Boolean).slice(0, 12)));
+  } catch(e){}
+  try { localStorage.setItem("flip7undo", JSON.stringify(undoStack.slice(-40))); } catch(e){}
+}
+
+/** applique une carte piochée par le joueur actif */
+function draw(kind, key){
+  const p = player();
+  if (!p || p.status !== "active"){ S.message = { txt:"Personne n'est en jeu — utilise le menu pour recommencer la manche.", bad:true }; render(); return; }
+  snapshot();
+
+  if (kind === "n"){
+    const v = +key;
+    const deja = p.cards.some(c => c.t === "n" && c.v === v);
+    if (deja){
+      if (p.chance){                       // Seconde chance jetée
+        p.chance = false;
+        S.message = { txt:`${p.name} a pioché un ${v} en double : Seconde chance jetée, il reste en jeu.` };
+      } else {
+        p.status = "busted"; p.cards = [];
+        S.message = { txt:`💥 ${p.name} a pioché un ${v} en double : il saute et marque 0 pour la manche.`, bad:true };
+        afterDraw();
+        shakePlayer(p.id);
+        return;
+      }
+    } else {
+      p.cards.push({ t:"n", v });
+      S.message = null;
+      if (uniqueNums(p.cards) >= 7){
+        S.flip7 = p.name;
+        celebrate("FLIP 7 !");
+        endRound();
+        return;
+      }
+    }
+  } else if (kind === "b"){
+    p.cards.push({ t:"b", k:key });
+    S.message = null;
+  } else if (kind === "s"){
+    if (key === "chance"){
+      if (!p.chance){ p.chance = true; S.message = null; }
+      else { giveChance(p); return; }
+    } else if (key === "stop" || key === "trois"){
+      S.message = { txt:`${key === "stop" ? "STOP" : "TROIS À LA SUITE"} — choisis la cible.` };
+      save(); render();
+      targetModal(key, p);
+      return;
+    }
+  }
+  afterDraw();
+}
+
+function afterDraw(){
+  const p = player();
+  // Trois à la suite : le joueur ciblé enchaîne ses tirages
+  if (p && p.status === "active" && p.forced > 0){ p.forced--; }
+  if (p && p.status === "active" && p.forced > 0){ save(); render(); return; }
+  advance();
+  save(); render();
+}
+function advance(){
+  const actives = S.players.filter(x => x.status === "active");
+  if (!actives.length){ endRound(); return; }
+  const i = actives.findIndex(x => x.id === S.activeId);
+  S.activeId = actives[(i + 1) % actives.length].id;
+}
+function targetModal(action, self){
+  const targets = S.players.filter(x => x.status === "active");
+  const only = targets.length <= 1;
+  const body = targets.map(t => `<button class="btn ghost" data-t="${t.id}" style="width:100%;margin-bottom:7px"
+      ${only && t.id !== self.id ? "disabled" : ""}>${esc(t.name)}${t.id === self.id ? " (moi)" : ""}
+      <span class="muted small"> — manche : ${roundScore(t.cards, false)}</span></button>`).join("");
+  modal(`<h3>${action === "stop" ? "STOP" : "TROIS À LA SUITE"} — cible</h3>
+    <p class="small muted">${action === "stop"
+      ? "Le joueur ciblé sort de la manche et encaisse ses points."
+      : "Le joueur ciblé doit retourner 3 cartes de suite."}</p>${body}`,
+    (m, close) => {
+      m.querySelectorAll("[data-t]").forEach(b => b.onclick = () => {
+        const t = S.players.find(x => x.id === b.dataset.t);
+        if (action === "stop"){
+          t.banked = roundScore(t.cards, false);
+          t.status = "frozen";
+          S.message = { txt:`🧊 ${t.name} a été stoppé : il encaisse ${t.banked} points.` };
+        } else {
+          t.forced = 3; S.activeId = t.id;
+          S.message = { txt:`↻ ${t.name} doit retourner 3 cartes de suite.` };
+        }
+        close();
+        const act = S.players.filter(x => x.status === "active");
+        if (!act.length) endRound(); else { if (action === "stop") advance(); save(); render(); }
+      });
+    });
+}
+function giveChance(self){
+  const targets = S.players.filter(x => x.status === "active" && !x.chance && x.id !== self.id);
+  if (!targets.length){
+    S.message = { txt:"Autre Seconde chance piochée : personne pour la prendre, elle est jetée." };
+    save(); render(); return;
+  }
+  modal(`<h3>Seconde chance en double</h3><p class="small muted">Tu en as déjà une : donne celle-ci à un autre joueur.</p>` +
+    targets.map(t => `<button class="btn ghost" data-t="${t.id}" style="width:100%;margin-bottom:7px">${esc(t.name)}</button>`).join(""),
+    (m, close) => m.querySelectorAll("[data-t]").forEach(b => b.onclick = () => {
+      const t = S.players.find(x => x.id === b.dataset.t); t.chance = true;
+      S.message = { txt:`${t.name} reçoit la Seconde chance.` }; close(); save(); render();
+    }));
+}
+function recall(){
+  const p = player();
+  if (!p || p.status !== "active") return;
+  snapshot();
+  p.status = "stopped";
+  S.message = { txt:`${p.name} stoppe et encaisse ${roundScore(p.cards, false)} points.` };
+  const act = S.players.filter(x => x.status === "active");
+  if (!act.length) endRound(); else { advance(); save(); render(); }
+}
+function endRound(){
+  const rows = [];
+  S.players.forEach(p => {
+    let sc = 0;
+    if (p.status === "busted") sc = 0;
+    else if (p.status === "frozen") sc = p.banked ?? roundScore(p.cards, false);
+    // le +15 du Flip 7 va uniquement à celui qui l'a réalisé
+    else sc = roundScore(p.cards, p.name === S.flip7);
+    p.total += sc;
+    rows.push({ n: p.name, s: sc, d: p.status === "busted" ? "a sauté — 0 point"
+      : p.status === "frozen" ? "stoppé par un STOP — " + sc + " points"
+      : explainScore(p.cards, p.name === S.flip7) });
+  });
+  S.history.push(rows);
+  S.lastRound = rows;
+  const w = S.players.find(p => p.total >= CIBLE);
+  if (w){ S.gameOver = true; S.winner = w.name; }
+  save(); render();
+}
+function nextRound(){
+  S.round++;
+  S.flip7 = null; S.lastRound = null; S.message = null; S.compile = null; S.lastCompile = null;
+  S.players.forEach(p => { p.cards = []; p.status = "active"; p.chance = false; p.forced = 0; p.banked = 0; });
+  S.activeId = S.players[0].id;
+  save(); render();
+}
+function bestPlayer(){ return S.players.slice().sort((a, b) => b.total - a.total)[0]; }
+
+/* ----- démarrage ----- */
+function rosterNames(){
+  try {
+    const a = JSON.parse(localStorage.getItem("flip7roster") || "[]");
+    if (!Array.isArray(a)) return [];
+    return a.map(x => String(x || "").trim()).filter(Boolean).slice(0, 12);
+  } catch(e){ return []; }
+}
+function defaultPlayers(){
+  const gardes = rosterNames();
+  const noms = gardes.length ? gardes : ["Joueur 1", "Joueur 2", "Joueur 3"];
+  return noms.map((n, i) => ({ id:"p" + (i + 1), name:n, color:PALETTE[i % PALETTE.length],
+    total:0, cards:[], chance:false, status:"active", forced:0, banked:0 }));
+}
+function startGame(keepPlayers){
+  if (!S.players.length) S.players = defaultPlayers();
+  // noms uniques obligatoires (comparaison sans casse ni espaces superflus)
+  S.players.forEach((p, i) => { p.name = String(p.name || "").trim() || "Joueur " + (i + 1); });
+  const keys = S.players.map(p => p.name.toLowerCase());
+  const dup = keys.some((k, i) => keys.indexOf(k) !== i);
+  if (dup){ S.started = false; S.message = null; save(); render(); return; }
+  S.players.forEach((p, i) => { p.total = 0; p.cards = []; p.status = "active"; p.chance = false; p.forced = 0; p.banked = 0; p.color = p.color || PALETTE[i % PALETTE.length]; });
+  S.started = true; S.round = 1; S.activeId = S.players[0].id; S.gameOver = false; S.lastRound = null; S.history = []; S.compile = null;
+  save(); render();
+}
+
+/* restauration */
+(function boot(){
+  try{
+    const raw = localStorage.getItem("flip7");
+    if (raw){ S = JSON.parse(raw); }
+    const u = localStorage.getItem("flip7undo"); if (u) undoStack = JSON.parse(u) || [];
+  } catch(e){ S = null; }
+  if (!S) { S = freshState(); S.players = defaultPlayers(); }
+  render();
+})();
+</script>
+</body>
+</html>
