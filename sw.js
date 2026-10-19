@@ -1,5 +1,5 @@
 /* Flip 7 — service worker : l'app démarre sans réseau */
-const CACHE = "flip7-v1";
+const CACHE = "flip7-v1792453117";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest",
                "./icons/icon-192.png", "./icons/icon-512.png"];
 
