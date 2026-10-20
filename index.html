@@ -231,11 +231,27 @@
   .inp:focus{border-color:var(--gold)}
   .inp::placeholder{color:var(--muted)}
   .srow{padding:5px 0 2px}
-  .pbar{height:9px;border-radius:99px;background:rgba(0,0,0,.42);overflow:hidden;margin:5px 0 4px;
-    box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+  .pbar{height:11px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden;margin:5px 0 4px;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.45)}
   .pbar i{display:block;height:100%;border-radius:99px;
     background:linear-gradient(90deg,#d1921f,#f0bb52)}
   .pbar i[style*="width:100"]{background:linear-gradient(90deg,#2f9e6f,#46c983)}
+  /* classement avec barres vers l'objectif */
+  .bars{display:flex;flex-direction:column;gap:7px;margin:2px 0 10px}
+  /* beaucoup de joueurs : la liste défile dans sa zone, la page ne défile jamais */
+  .bars.scroll{overflow-y:auto;min-height:0;flex:1;-webkit-overflow-scrolling:touch}
+  .bars.dense{gap:5px}
+  .bars.dense .barrow{padding:4px 8px}
+  .bars.dense .btot{font-size:14.5px}
+  .bars.dense .pbar{height:8px;margin:4px 0 2px}
+  .bsur{font-size:10.5px;font-weight:800;color:var(--muted);letter-spacing:.2px;margin-left:1px}
+  .barrow{padding:6px 9px;border-radius:12px;background:rgba(0,0,0,.22);
+    border:1px solid rgba(255,255,255,.07)}
+  .barhead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .btot{font-weight:900;font-size:16px;line-height:1;letter-spacing:-.2px}
+  .delta{font-weight:800;font-size:12.5px;color:var(--ok);background:rgba(70,201,131,.14);
+    border-radius:99px;padding:2px 7px;line-height:1.15}
+  .delta.nil{color:var(--muted);background:rgba(255,255,255,.07)}
   .sheet h3{margin:0 0 12px;font-size:17px;letter-spacing:.2px}
 
   /* ---------- fin de manche / partie ---------- */
@@ -309,7 +325,7 @@
    - Les cartes jouées sont mises de côté : la pioche s'épuise (bouton « remélanger »)
    ========================================================================= */
 
-const BUILD = "19 oct · 19h40";
+const BUILD = "19 oct · 20h15";
 
 /* ---------- données des cartes ---------- */
 const MOTS = ["ZÉRO","UN","DEUX","TROIS","QUATRE","CINQ","SIX","SEPT","HUIT","NEUF","DIX","ONZE","DOUZE"];
@@ -745,26 +761,45 @@ function renderCompileIntro(root){
       <button class="btn ghost small" id="scores" style="width:40px;padding:0" title="Voir les points" aria-label="Voir les points"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 19v-6M11 19V6M17 19v-4"/></svg></button>
         <button class="btn ghost small" id="menu" style="width:40px;padding:0" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>
-    <h2>Pointage de la manche ${S.round}</h2>
-    <div id="players"></div>
+    <h2>${S.prevRound
+      ? `Après la manche ${S.round - 1} — manche ${S.round} à venir`
+      : `Pointage de la manche ${S.round}`}</h2>
+    ${barsHTML(S.prevRound ? S.prevRound.map(r => r.s) : null, true)}
     <div class="panel">
-      <p class="small muted">Jouez la manche avec les vraies cartes. Quand tout le monde a stoppé ou sauté,
-      compile les cartes de chaque joueur, un par un.</p>
+      <p class="small muted">Manche ${S.round} : jouez avec les vraies cartes. Quand tout le monde a
+      stoppé ou sauté, compile les cartes de chaque joueur, un par un.</p>
       <button class="btn primary" id="goCompile" style="width:100%">Compiler les joueurs →</button>
     </div>`;
-  const pl = el("players");
-  S.players.forEach(pl2 => {
-    const n = document.createElement("div");
-    n.className = "player";
-    n.innerHTML = `<div class="phead">
-        <div class="row" style="gap:8px"><span class="avatar" style="background:${pl2.color};width:28px;height:28px;font-size:13px">${initial(pl2.name)}</span>
-          <span class="pname">${esc(pl2.name)}</span></div>
-        <div class="ptotal">${pl2.total}</div></div>`;
-    pl.appendChild(n);
-  });
   el("goCompile").onclick = startCompile;
   el("menu").onclick = openMenu;
   const sb = el("scores"); if (sb) sb.onclick = openScores;
+}
+
+/* classement de tous les joueurs avec la barre vers l'objectif.
+   deltas = points gagnés à la manche qui vient de se terminer (index = joueur) */
+function barsHTML(deltas, scroll){
+  const order = S.players.map((p, i) => ({ p, i })).sort((a, b) => (b.p.total || 0) - (a.p.total || 0));
+  const cls = "bars" + (scroll ? " scroll" : "") + (S.players.length > 6 ? " dense" : "");
+  return `<div class="${cls}">` + order.map(({ p, i }) => {
+    const v = p.total || 0;
+    const pct = Math.max(0, Math.min(100, v / CIBLE * 100));
+    const d = deltas && deltas[i] !== undefined && deltas[i] !== null ? deltas[i] : null;
+    const atteint = v >= CIBLE;
+    return `<div class="barrow">
+      <div class="barhead">
+        <span class="row nowrap" style="gap:7px;min-width:0">
+          <span class="avatar" style="background:${p.color};width:20px;height:20px;font-size:10.5px">${initial(p.name)}</span>
+          <span class="ellip" style="font-weight:800;font-size:14px">${esc(p.name)}</span>
+        </span>
+        <span class="row nowrap" style="gap:6px;flex:0 0 auto">
+          ${d !== null ? `<span class="delta${d > 0 ? "" : " nil"}">+${d}</span>` : ""}
+          <span class="btot" style="color:${atteint ? "var(--ok)" : "var(--gold)"}">${v}</span>
+          <span class="bsur">/${CIBLE}</span>
+        </span>
+      </div>
+      <div class="pbar"><i style="width:${pct.toFixed(1)}%"></i></div>
+    </div>`;
+  }).join("") + `</div>`;
 }
 
 /* bac de cartes réutilisable (Numéro + Bonus) */
@@ -853,9 +888,11 @@ function cFinish(){
   S.lastCompile = { entries: JSON.parse(JSON.stringify(S.compile.entries)),
                     applied: rows.map((r, i) => ({ id: S.players[i].id, sc: r.s })) };
   const w = S.players.find(p => p.total >= CIBLE);
-  if (w){ S.gameOver = true; S.winner = w.name; }
+  if (w){ S.gameOver = true; S.winner = w.name; S.compile = null; save(); render(); return; }
   S.compile = null;
-  save(); render();
+  S.prevRound = rows;       // le récap s'affiche dans l'écran de la manche suivante
+  S.lastRound = null;       // pas d'écran de fin de manche séparé en mode compilation
+  nextRound(true);          // enchaîne tout de suite : un seul écran entre deux manches
 }
 function renderCompile(root){
   const p = S.players[S.compile.idx];
@@ -1028,17 +1065,10 @@ function renderRoundEnd(root){
     <div class="topbar"><span class="badge">Fin de la manche ${S.round}</span></div>
     ${S.flip7 ? `<div class="banner"><b>FLIP 7 !</b> ${esc(S.flip7)} a retourné 7 Numéros différents — la manche s'arrête tout de suite (+15).</div>` : ""}
     <div class="panel grow" style="overflow-y:auto;min-height:0">
-      ${rows.map((r, i) => `
-        <div class="scoreline">
-          <div>
-            <b style="color:${S.players[i].color}">${esc(r.n)}</b>
-            <div class="small muted">${esc(r.d || explainScore(S.players[i].cards, false))}</div>
-          </div>
-          <div style="text-align:right">
-            <b style="color:${r.s === best && r.s > 0 ? "var(--gold)" : "inherit"}">+${r.s}</b>
-            <div class="small muted">total ${S.players[i].total}</div>
-          </div>
-        </div>`).join("")}
+      ${barsHTML(rows.map(r => r.s))}
+      <div class="small muted" style="line-height:1.45">
+        ${rows.map((r, i) => `<div><b style="color:${S.players[i].color}">${esc(r.n)}</b> ${esc(r.d || explainScore(S.players[i].cards, false))}</div>`).join("")}
+      </div>
     </div>
     <div class="row">
       <button class="btn primary" id="next" style="flex:1">Manche ${S.round + 1} →</button>
@@ -1046,17 +1076,7 @@ function renderRoundEnd(root){
     </div>`;
   el("next").onclick = nextRound;
   el("fix").onclick = () => {
-    if (S.mode === "compile" && S.lastCompile){
-      S.lastCompile.applied.forEach(a => {
-        const pl = S.players.find(x => x.id === a.id);
-        if (pl) pl.total -= a.sc;
-      });
-      S.history.pop();
-      S.compile = { idx: 0, entries: S.lastCompile.entries };
-      S.lastCompile = null;
-      S.lastRound = null;
-      save(); render(); return;
-    }
+    if (S.mode === "compile" && S.lastCompile){ fixLastCompile(); return; }
     S.lastRound = null; save(); render();
   };
 }
@@ -1078,6 +1098,20 @@ function renderWin(root){
     <div class="row"><button class="btn primary" id="again" style="flex:1">Nouvelle partie</button></div>`;
   el("again").onclick = () => { S = freshState(); S.players = defaultPlayers(); save(); render(); };
   celebrate("🏆 " + esc(S.winner));
+}
+
+/* annule la dernière compilation : totaux rendus, on rouvre la saisie */
+function fixLastCompile(){
+  if (!S.lastCompile) return;
+  S.lastCompile.applied.forEach(a => {
+    const pl = S.players.find(x => x.id === a.id);
+    if (pl) pl.total -= a.sc;
+  });
+  S.history.pop();
+  if (S.round > 1) S.round--;
+  S.compile = { idx: 0, entries: S.lastCompile.entries };
+  S.lastCompile = null; S.lastRound = null; S.prevRound = null;
+  save(); render();
 }
 
 /* ----- modales ----- */
@@ -1176,6 +1210,7 @@ function openMenu(){
       <button class="btn ghost" id="mswitch">Méthode : ${S.mode === "compile" ? "compilation en fin de manche" : "suivi en direct"} ⇄</button>
       ${S.mode === "compile" && !S.compile ? '<button class="btn ghost" id="mcompile">Compiler cette manche maintenant</button>' : ""}
       ${undoStack.length ? '<button class="btn ghost" id="mundo">↶ Annuler la dernière action</button>' : ""}
+      ${S.lastCompile ? '<button class="btn ghost" id="mfix">Corriger la manche précédente</button>' : ""}
       <button class="btn ghost" id="rreset">Reprendre la manche (cartes rendues)</button>
       <button class="btn danger" id="rend">Terminer la partie</button>
       <button class="btn" id="close">Fermer</button>
@@ -1189,6 +1224,8 @@ function openMenu(){
       };
       const mu = m.querySelector("#mundo");
       if (mu) mu.onclick = () => { close(); undo(); };
+      const mf = m.querySelector("#mfix");
+      if (mf) mf.onclick = () => { close(); fixLastCompile(); };
       const mc = m.querySelector("#mcompile");
       if (mc) mc.onclick = () => { close(); startCompile(); };
       m.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
@@ -1363,9 +1400,10 @@ function endRound(){
   if (w){ S.gameOver = true; S.winner = w.name; }
   save(); render();
 }
-function nextRound(){
+function nextRound(keep){
   S.round++;
-  S.flip7 = null; S.lastRound = null; S.message = null; S.compile = null; S.lastCompile = null;
+  S.flip7 = null; S.lastRound = null; S.message = null; S.compile = null;
+  if (!keep) S.lastCompile = null;
   S.players.forEach(p => { p.cards = []; p.status = "active"; p.chance = false; p.forced = 0; p.banked = 0; });
   S.activeId = S.players[0].id;
   save(); render();
