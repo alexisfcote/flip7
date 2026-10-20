@@ -325,7 +325,7 @@
    - Les cartes jouées sont mises de côté : la pioche s'épuise (bouton « remélanger »)
    ========================================================================= */
 
-const BUILD = "19 oct · 20h15";
+const BUILD = "19 oct · 20h45";
 
 /* ---------- données des cartes ---------- */
 const MOTS = ["ZÉRO","UN","DEUX","TROIS","QUATRE","CINQ","SIX","SEPT","HUIT","NEUF","DIX","ONZE","DOUZE"];
@@ -568,10 +568,11 @@ let msgTimer = null;
 function armMessageTimer(){
   if (typeof setTimeout !== "function") return;
   if (msgTimer) clearTimeout(msgTimer);
+  const ms = (S && S.message && S.message.undo) ? 12000 : 6000;   // une annulation reste offerte plus longtemps
   msgTimer = setTimeout(() => {
     msgTimer = null;
     if (S && S.message){ S.message = null; save(); render(); }
-  }, 6000);
+  }, ms);
   if (msgTimer && typeof msgTimer.unref === "function") msgTimer.unref();
 }
 
@@ -584,7 +585,9 @@ render = (function(orig){
     const bn = (typeof document !== "undefined" && typeof document.querySelector === "function")
       ? document.querySelector(".banner") : null;
     if (bn && !bn.onclick) bn.onclick = () => {
-      if (S.message){ S.message = null; save(); render(); }
+      if (!S.message) return;
+      if (S.message.undo){ S.message = null; undo(); return; }
+      S.message = null; save(); render();
     };
     if (S.message) armMessageTimer();
     fitCards();      // tout de suite : la page ne s'affiche jamais « de travers »
@@ -761,6 +764,7 @@ function renderCompileIntro(root){
       <button class="btn ghost small" id="scores" style="width:40px;padding:0" title="Voir les points" aria-label="Voir les points"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 19v-6M11 19V6M17 19v-4"/></svg></button>
         <button class="btn ghost small" id="menu" style="width:40px;padding:0" title="Menu" aria-label="Menu"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>
+    ${S.message ? `<div class="banner ${S.message.bad ? "bad" : ""}">${S.message.txt}</div>` : ""}
     <h2>${S.prevRound
       ? `Après la manche ${S.round - 1} — manche ${S.round} à venir`
       : `Pointage de la manche ${S.round}`}</h2>
@@ -1187,7 +1191,7 @@ function removePlayer(id){
     }
   }
   if (S.activeId === id) S.activeId = (S.players[i] || S.players[0]).id;
-  S.message = { txt:`${nom} quitte la partie.` };
+  S.message = { txt:`${nom} quitte la partie — touche ici pour annuler.`, undo:true };
   save(); render();
 }
 
@@ -1209,7 +1213,6 @@ function openMenu(){
       ${installPrompt ? '<button class="btn primary" id="minstall">Installer sur l\'écran d\'accueil</button>' : ""}
       <button class="btn ghost" id="mswitch">Méthode : ${S.mode === "compile" ? "compilation en fin de manche" : "suivi en direct"} ⇄</button>
       ${S.mode === "compile" && !S.compile ? '<button class="btn ghost" id="mcompile">Compiler cette manche maintenant</button>' : ""}
-      ${undoStack.length ? '<button class="btn ghost" id="mundo">↶ Annuler la dernière action</button>' : ""}
       ${S.lastCompile ? '<button class="btn ghost" id="mfix">Corriger la manche précédente</button>' : ""}
       <button class="btn ghost" id="rreset">Reprendre la manche (cartes rendues)</button>
       <button class="btn danger" id="rend">Terminer la partie</button>
@@ -1222,8 +1225,6 @@ function openMenu(){
         if (S.mode === "live"){ S.players.forEach(x => { x.status = "active"; x.forced = 0; }); S.activeId = S.players[0].id; }
         save(); close(); render();
       };
-      const mu = m.querySelector("#mundo");
-      if (mu) mu.onclick = () => { close(); undo(); };
       const mf = m.querySelector("#mfix");
       if (mf) mf.onclick = () => { close(); fixLastCompile(); };
       const mc = m.querySelector("#mcompile");
